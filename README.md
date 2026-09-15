@@ -12,6 +12,29 @@ python3 cam16_compare.py \
   --la 318.31 --yb 20
 ```
 
+## Example output
+
+```text
+   label        model        J        Q          C         M          s        h
+--------  -----------  -------  -------  ---------  --------  ---------  -------
+sample-1        cam16  41.7312  195.372   0.103356  0.107437    2.34502  217.068
+sample-1  hellwig2022  41.7312  55.8523  0.0257636  0.033989  0.0608551  217.068
+
+6 significant digits shown; CSV and JSON retain full precision
+
+viewing conditions
+  XYZ_w                 95.05, 100, 108.88
+  L_A                   318.31 cd/m2
+  Y_b                   20
+  surround              average (F=1, c=0.69, N_c=1)
+  degree of adaptation  0.9944687801 (computed)
+input handling
+  Domain-100 normalized false
+  signed XYZ allowed    false
+implementation: cam16_compare.py 1.2.1
+interpretation limit: Model output only; not measurement or observer validation
+```
+
 On Windows, use `py -3 cam16_compare.py`, or `python cam16_compare.py` when
 that is the installed command, and keep the remaining options the same. Run
 `--help` for the complete interface and `--version` for the implementation
@@ -51,54 +74,6 @@ can keep with an analysis.
 No third-party packages need to be installed. Copy the Python script or the
 JavaScript module appropriate to your use. The Python script needs Python 3.10
 or newer; the browser module has no package or build step.
-
-## Compatibility
-
-The interactive calculator has not been manually tested in a Windows browser.
-Automated checks for its Python and JavaScript calculation modules have passed
-on GitHub-hosted Windows, macOS, and Ubuntu runners.
-
-## Numerical validation
-
-The implementation is checked in two ways:
-
-- [the dependency-free suite](tests/test_cam16_compare.py) reproduces published
-  CAM16 and Hellwig worked examples and checks the relations that distinguish
-  the models; and
-- [`test_cam16_colour_differential.py`](tests/test_cam16_colour_differential.py)
-  compares both models with `colour-science` 0.4.7 while varying the stimulus,
-  adopted white, adapting luminance, background, surround, and adaptation mode.
-
-These checks target equation transcription and numerical consistency; they do
-not test perceptual accuracy or show that either model is better. Colour is an
-optional validation dependency and is not needed to run the tool. Hue is
-compared circularly and only for samples whose hue is resolved: see
-[Near-neutral samples and hue](#near-neutral-samples-and-hue) for why some
-near-zero opponent directions are not numerically reportable. Lightness and
-brightness still compare directly for those samples; chroma, colorfulness,
-and saturation must stay within explicit near-zero bounds because their raw
-residues are not meaningful cross-implementation targets.
-
-```text
-   label        model        J        Q          C         M          s        h
---------  -----------  -------  -------  ---------  --------  ---------  -------
-sample-1        cam16  41.7312  195.372   0.103356  0.107437    2.34502  217.068
-sample-1  hellwig2022  41.7312  55.8523  0.0257636  0.033989  0.0608551  217.068
-
-6 significant digits shown; CSV and JSON retain full precision
-
-viewing conditions
-  XYZ_w                 95.05, 100, 108.88
-  L_A                   318.31 cd/m2
-  Y_b                   20
-  surround              average (F=1, c=0.69, N_c=1)
-  degree of adaptation  0.9944687801 (computed)
-input handling
-  Domain-100 normalized false
-  signed XYZ allowed    false
-implementation: cam16_compare.py 1.2.1
-interpretation limit: Model output only; not measurement or observer validation
-```
 
 ## What the correlates mean
 
@@ -205,9 +180,9 @@ python3 cam16_compare.py --input-csv examples/samples.csv \
 Add `--format csv` to either command to get the full-precision export instead
 of the readable table.
 
-The current input contract is comma-delimited. Tab- and semicolon-delimited
-exports, column remapping, and per-row viewing conditions are not supported;
-convert those files explicitly before running the tool.
+CSV input is comma-delimited. Convert tab- or semicolon-delimited files before
+running the tool; column remapping and per-row viewing conditions are not
+supported.
 
 ## Output formats
 
@@ -215,7 +190,7 @@ convert those files explicitly before running the tool.
 |---|---|---|
 | `table` (default) | Reading in a terminal | Up to six significant digits with conditions below |
 | `json` | Machine-readable data | Full-precision, nested records by sample and model |
-| `csv` | Spreadsheets and data exchange | Full-precision, deliberately wide row per model |
+| `csv` | Spreadsheets and data exchange | Full-precision, self-contained row per model |
 
 Every CSV row includes the inputs, evaluated values, viewing conditions,
 input-handling choices, tool version, and interpretation limit. Each row can
@@ -238,15 +213,10 @@ opponent magnitude on every model row. JSON stores the shared
 numeric correlates for detailed analysis.
 
 The diagnostic compares the opponent magnitude with the adapted-response
-scale. Version 1.2.1 reports hue only when that ratio is at least `1e-8`. A
-white under materially incomplete adaptation can still have a resolved hue.
-This is a numerical reporting boundary, not a perceptual threshold.
-
-Python and JavaScript use the same resolution boundary and
-six-significant-digit display. Machine-readable outputs retain the raw values
-and hue diagnostic for detailed analysis. Near the boundary, full-precision
-values can vary slightly between runtimes even when the displayed result and
-resolution decision agree.
+scale. The tool reports hue when that ratio is at least `1e-8`; a white under
+materially incomplete adaptation can still have a resolved hue. This is a
+numerical reporting boundary, not a perceptual threshold. Near it,
+full-precision values can vary slightly between runtimes.
 
 For library callers, `compare_models_with_diagnostics()` returns the model
 results and the shared hue diagnostic together. `compare_models()` preserves
@@ -269,6 +239,15 @@ result = compare_models(
 )
 ```
 
+## Numerical validation
+
+[The dependency-free tests](tests/test_cam16_compare.py) reproduce published
+CAM16 and Hellwig worked examples. An
+[optional comparison](tests/test_cam16_colour_differential.py) checks both
+models against `colour-science` 0.4.7 across varied stimuli and viewing
+conditions. These checks catch equation-transcription and numerical
+inconsistencies; they do not evaluate perceptual accuracy.
+
 ## Learn about the models
 
 For the background behind the equations and a visual comparison of their
@@ -288,5 +267,4 @@ project; keep the notice with it.
 
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) lists the equation sources,
 the published examples used by the tests, and the optional development
-dependency. Nothing is vendored, and the tool imports only the Python standard
-library.
+dependency. The tool imports only the Python standard library.
