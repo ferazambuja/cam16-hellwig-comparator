@@ -1,7 +1,7 @@
 # CAM16 and Hellwig–Fairchild 2022 comparator
 
 [`cam16_compare.py`](cam16_compare.py) converts XYZ to six forward appearance
-correlates under viewing conditions you declare. It reports standard CAM16,
+correlates under viewing conditions you provide. It reports standard CAM16,
 the Hellwig–Fairchild 2022 proposal, or both side by side. The script needs
 Python 3.10 or newer and only the Python standard library.
 
@@ -19,7 +19,7 @@ version.
 
 For a browser or another JavaScript program, import the dependency-free
 [`cam16_compare.mjs`](cam16_compare.mjs) module. It exposes the same forward
-models and viewing-condition safeguards without the command-line and CSV
+models and domain checks without the command-line and CSV
 interfaces:
 
 ```js
@@ -34,47 +34,45 @@ const models = compareModels({
 });
 ```
 
-The JavaScript API requires numeric values and never coerces strings. Its
-`cam16-browser-api-v1` contract is intentionally smaller than the Python
-tool's serialized CSV/JSON schema.
+The JavaScript API accepts numeric values without string coercion. It covers
+single calculations; the Python tool supplies the command-line, CSV, and JSON
+interfaces.
 
 ## Use it in your browser
 
 [Open the interactive calculator](https://ferazambuja.github.io/imaging/cam16-hellwig-comparator/)
 to enter one XYZ stimulus and its viewing conditions without installing
-anything. It runs the tested JavaScript module locally in the page. Use the
+anything. It runs the JavaScript module locally in the page. Use the
 Python script when you need CSV batches, machine-readable output, or a file you
 can keep with an analysis.
 
-## Installing
+## Installation
 
-Nothing to install. Copy the Python script or the JavaScript module appropriate
-to your use. The Python path needs Python 3.10 or newer; the browser module has
-no packages, build step, or network dependency.
+No third-party packages need to be installed. Copy the Python script or the
+JavaScript module appropriate to your use. The Python script needs Python 3.10
+or newer; the browser module has no package or build step.
 
-## Platform status
+## Compatibility
 
-The test suite has been executed locally on macOS with Python 3.10, 3.13, and
-3.14. CI has also passed on Windows with Python 3.13, as well as Ubuntu and
-macOS. The runtime uses only the Python standard library. The workflow executes
-every fenced shell example in this README with the selected interpreter.
+The interactive calculator has not been manually tested in a Windows browser.
+Automated checks for its Python and JavaScript calculation modules have passed
+on GitHub-hosted Windows, macOS, and Ubuntu runners.
 
-## Why you can trust the numbers
+## Numerical validation
 
-The included tests use two independent numerical anchors:
+The implementation is checked in two ways:
 
-- [the dependency-free suite](tests/test_cam16_compare.py) reproduces the
-  published CAM16 and Hellwig worked examples and tests the structural
-  relations that distinguish the models; and
+- [the dependency-free suite](tests/test_cam16_compare.py) reproduces published
+  CAM16 and Hellwig worked examples and checks the relations that distinguish
+  the models; and
 - [`test_cam16_colour_differential.py`](tests/test_cam16_colour_differential.py)
-  runs this module against `colour-science` 0.4.7, an independently maintained
-  implementation of both models, over 1,728 combinations of stimuli, whites,
-  adapting luminances, backgrounds, surrounds, and adaptation modes.
+  compares both models with `colour-science` 0.4.7 while varying the stimulus,
+  adopted white, adapting luminance, background, surround, and adaptation mode.
 
-That differential skips when `colour-science` is absent, so the tool keeps its
-no-dependency property. The dedicated CI job is configured to install the
-package and run the comparison. Hue is compared circularly, and only for
-samples whose hue is resolved: see
+These checks target equation transcription and numerical consistency; they do
+not test perceptual accuracy or show that either model is better. Colour is an
+optional validation dependency and is not needed to run the tool. Hue is
+compared circularly and only for samples whose hue is resolved: see
 [Near-neutral samples and hue](#near-neutral-samples-and-hue) for why some
 near-zero opponent directions are not numerically reportable. Lightness and
 brightness still compare directly for those samples; chroma, colorfulness,
@@ -118,15 +116,13 @@ interpretation limit: Model output only; not measurement or observer validation
 comparison—not an error, a color difference, or proof that one model is more
 accurate.
 
-An exact black is outside this tool's supported chromatic domain and is
-refused; do not read the lightness description above as permission to supply
-`XYZ = 0, 0, 0`.
+Exact black (`XYZ = 0, 0, 0`) is outside this tool's supported chromatic domain
+and returns an error.
 
 ## What you must supply
 
-The tool refuses to invent a viewing condition. A correlate calculated under
-the wrong condition still looks numerically plausible, so these inputs remain
-explicit.
+Viewing conditions are required because the same XYZ values can produce
+different correlates under different conditions.
 
 | Input | Flag | How to choose it |
 |---|---|---|
@@ -137,9 +133,9 @@ explicit.
 | Surround | `--surround` | A model induction preset: `average`, `dim`, or `dark` |
 | Adaptation degree | `--degree-of-adaptation` | Normally omit it and let the model compute `D`; override only deliberately |
 
-The examples use `Y_b = 20`; that is an example condition, not a hidden tool
-default. One white, background, surround, and adaptation degree apply to every
-sample in a CSV batch. Use a separate run for each viewing condition.
+The examples use `Y_b = 20`. Select a value appropriate to the intended viewing
+condition. One white, background, surround, and adaptation degree apply to every
+sample in a CSV batch; use a separate run for each viewing condition.
 
 ## Three common input scales
 
@@ -221,10 +217,10 @@ convert those files explicitly before running the tool.
 | `json` | Machine-readable data | Full-precision, nested records by sample and model |
 | `csv` | Spreadsheets and data exchange | Full-precision, deliberately wide row per model |
 
-The CSV is wide on purpose. Every row repeats the inputs, evaluated values,
-viewing conditions, input-handling choices, tool version, and interpretation
-limit. You can therefore understand and recalculate one row without the
-original command line or the rest of the file.
+Every CSV row includes the inputs, evaluated values, viewing conditions,
+input-handling choices, tool version, and interpretation limit. Each row can
+therefore be understood and recalculated without the original command line or
+the rest of the file.
 
 Use `--output PATH` to write any format to a file instead of standard output.
 
@@ -242,17 +238,15 @@ opponent magnitude on every model row. JSON stores the shared
 numeric correlates for detailed analysis.
 
 The diagnostic compares the opponent magnitude with the adapted-response
-scale. Version 1.2.1 uses a ratio of `1e-8`. A white under materially
-incomplete adaptation remains resolved; the rule is numerical, not a blanket
-assumption that `XYZ == XYZ_w` has no hue.
+scale. Version 1.2.1 reports hue only when that ratio is at least `1e-8`. A
+white under materially incomplete adaptation can still have a resolved hue.
+This is a numerical reporting boundary, not a perceptual threshold.
 
-This is a reporting boundary, not a perceptual threshold or a promise that
-every raw floating-point result has the same last digits in every runtime.
-The 1,728-case broad grid stays well clear of the boundary and uses a strict
-`1e-11` relative comparison. Separate regression inputs from `1.2e-8` to
-`5e-6` exercise the boundary itself: Python and JavaScript must make the same
-resolution decision and display the same six significant digits there, under
-looser raw-value tolerances that reflect the cancellation-sensitive arithmetic.
+Python and JavaScript use the same resolution boundary and
+six-significant-digit display. Machine-readable outputs retain the raw values
+and hue diagnostic for detailed analysis. Near the boundary, full-precision
+values can vary slightly between runtimes even when the displayed result and
+resolution decision agree.
 
 For library callers, `compare_models_with_diagnostics()` returns the model
 results and the shared hue diagnostic together. `compare_models()` preserves
@@ -280,12 +274,12 @@ result = compare_models(
 For the background behind the equations and a visual comparison of their
 outputs:
 
-- [the CAM16 equation audit](https://github.com/ferazambuja/imaging-color-measurement/blob/main/reports/cam16-equation-audit.md),
-  which reproduces the deterministic consequences of the proposed revision and
-  keeps the paper's unfavorable colorfulness result visible.
-- [the portfolio comparison](https://ferazambuja.github.io/imaging/#cam16-hellwig-comparator),
-  which explains the two formulations in plain language, generates one compact
-  example with this tool, and links the result to the equation study.
+- [the CAM16 equation results](https://github.com/ferazambuja/imaging-color-measurement/blob/main/reports/cam16-equation-audit.md),
+  which compare the brightness relations, coupled background behavior, corrected
+  coefficient, and mixed fit results reported in the paper.
+- [the browser calculator](https://ferazambuja.github.io/imaging/cam16-hellwig-comparator/),
+  which explains the formulations and evaluates either one for your XYZ values
+  and viewing conditions.
 
 ## Licence and sources
 
